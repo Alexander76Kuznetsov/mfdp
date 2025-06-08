@@ -1,0 +1,70 @@
+<h1>Predictions 🕵️</h1>
+
+<p>You can make prediction</p>
+
+<h3>Введите данные для предсказания</h3>
+<form action="/predict" method="post">
+    <input type="hidden" name="user_id" value="{{ user_id }}">
+    <input type="hidden" name="model_id" value="1">
+    <input type="hidden" name="cost" value="20">
+
+    <!-- <label for="fixed_acidity">fixed_acidity:</label>
+    <input type="number" name="fixed_acidity" step="0.01" required> <br>
+
+    <label for="volatile_acidity">volatile_acidity:</label>
+    <input type="number" name="volatile_acidity" step="0.01" required> <br>
+
+    <label for="citric_acid">citric_acid:</label>
+    <input type="number" name="citric_acid" step="0.01" required> <br>
+
+    <label for="residual_sugar">residual_sugar:</label>
+    <input type="number" name="residual_sugar" step="0.01" required> <br>
+
+    <label for="chlorides">chlorides:</label>
+    <input type="number" name="chlorides" step="0.01" required> <br>
+
+    <label for="free_sulfur_dioxide">free_sulfur_dioxide:</label>
+    <input type="number" name="free_sulfur_dioxide" step="0.01" required> <br>
+
+    <label for="total_sulfur_dioxide">total_sulfur_dioxide:</label>
+    <input type="number" name="total_sulfur_dioxide" step="0.01" required> <br>
+
+    <label for="density">density:</label>
+    <input type="number" name="density" step="0.01" required> <br>
+
+    <label for="ph">ph:</label>
+    <input type="number" name="ph" step="0.01" required> <br>
+
+    <label for="sulphates">sulphates:</label>
+    <input type="number" name="sulphates" step="0.01" required> <br>
+
+    <label for="alcohol">alcohol:</label>
+    <input type="number" name="alcohol" step="0.01" required> <br> -->
+
+    <button type="submit">Предсказать</button>
+</form>
+
+{% if request_id %}
+    <p>Prediction id: {{ request_id }}</p>
+{% else %}
+    <p>Here will be prediction id!</p>
+{% endif %}
+
+
+<h3>Результаты предсказания</h3>
+<form action="/get_prediction" method="post">
+    <label for="request_id">Prediction ID:</label>
+    <input type="text" name="request_id" required> <br>
+
+    <button type="submit">Получить результаты</button>
+</form>
+
+{% if prediction_res %}
+    <p>{{ prediction_res }}</p>
+{% else %}
+    <p>Here will be prediction</p>
+{% endif %}
+
+<hr>
+
+{% include '_site_map.html' %}

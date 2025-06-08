@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}
+Home page!
+{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <style type="text/css">
+        .important { color: #336699; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<h1>Home page! 🏡</h1>
+
+<p class="important">
+    Welcome to my awesome homepage.
+</p>
+
+{% if user %}
+    <h2>You are logged in :)</h2>
+    <p>
+        Hi {{ user }}! You are logged in, so you can access the private 
+        page. <a href="/private">here</a>!
+    </p>
+{% else %}
+    <h2>You are NOT logged in :(</h2>
+    <p>
+        Hello stranger. You are not logged. Please follow the link to
+        <a href="/auth/login" class="btn">login</a> or <a href="/signup">sign up</a>!
+    </p>
+{% endif %}
+
+<hr>
+
+{% endblock %}

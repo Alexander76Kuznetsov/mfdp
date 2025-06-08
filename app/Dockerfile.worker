@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app/
+
+COPY requirements.txt /app/
+
+RUN pip install --upgrade pip && pip install -r /app/requirements.txt
+
+COPY database/ /app/database/
+COPY ml_models/ /app/ml_models/
+COPY models/ /app/models/
+COPY services/ /app/services/
+COPY worker.py /app/
+
+CMD ["python", "worker.py"]
