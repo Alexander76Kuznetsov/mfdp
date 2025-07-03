@@ -19,6 +19,7 @@ class User(SQLModel, table=True):
     is_admin: bool = Field(default=False)
     tasks: List["MLTask"] = Relationship(back_populates="user")
     transactions: List["Transaction"] = Relationship(back_populates="user")
+    training_jobs: List["TrainingJob"] = Relationship(back_populates="user")
 
     def deposit(self, deposit_amount: float) -> None:
         self.balance += deposit_amount
@@ -103,3 +104,18 @@ class RabbitmqResult(SQLModel, table=True):
     request_id: str
 
     task: "MLTask" = Relationship(back_populates="rabbitmqresults")
+
+
+class TrainingJob(SQLModel, table=True):
+    job_id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    model_type: str  # "popular" or "als"
+    data_path: str
+    hyperparams: Optional[str] = Field(default=None)  # JSON string
+    status: str = Field(default="pending")  # pending, loading_data, preprocessing, training, completed, failed
+    metrics: Optional[str] = Field(default=None)  # JSON string
+    model_path: Optional[str] = Field(default=None)
+    created_at: str = Field(default_factory=get_current_date)
+    updated_at: str = Field(default_factory=get_current_date)
+    
+    user: User = Relationship(back_populates="training_jobs")

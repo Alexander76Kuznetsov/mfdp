@@ -13,8 +13,9 @@ from database.database import init_db, get_session, engine
 from services.crud import user as UserService
 from services.crud import transaction as TransactionService
 from services.crud import ml as MlService
+from services.crud import training as TrainingService
 from sqlmodel import Session
-from models.all_models import TokenResponse, User, MLModel, MLTask, RabbitmqResult
+from models.all_models import TokenResponse, User, MLModel, MLTask, RabbitmqResult, TrainingJob
 import pika
 import json
 import uuid
@@ -294,6 +295,115 @@ def get_prediction(request: Request, request_id: str = Form(...), user_email: st
     }
 
     return templates.TemplateResponse("prediction.html", context)
+
+
+# Training endpoints
+@app.get("/training/")
+def training_page(request: Request, user_email: str = Depends(authenticate_cookie), session=Depends(get_session)):
+    user = UserService.get_user_by_email(user_email, session)
+    training_service = TrainingService.TrainingService()
+    
+    # Get user's training jobs
+    jobs = session.query(TrainingJob).filter(TrainingJob.user_id == user.id).order_by(TrainingJob.created_at.desc()).all()
+    
+    context = {
+        "user": user,
+        "request": request,
+        "jobs": jobs
+    }
+    return templates.TemplateResponse("training.html", context)
+
+
+@app.post("/start_training/")
+def start_training(request: Request, 
+                  model_type: str = Form(...),
+                  data_path: str = Form(...),
+                  iterations: int = Form(default=10),
+                  factors: int = Form(default=60),
+                  user_email: str = Depends(authenticate_cookie), 
+                  session: Session = Depends(get_session)):
+    
+    user = UserService.get_user_by_email(user_email, session)
+    training_service = TrainingService.TrainingService()
+    
+    # Create training job
+    hyperparams = json.dumps({
+        "iterations": iterations,
+        "factors": factors
+    }) if model_type == "als" else None
+    
+    job = TrainingJob(
+        user_id=user.id,
+        model_type=model_type,
+        data_path=data_path,
+        hyperparams=hyperparams
+    )
+    
+    job = training_service.create_training_job(job, session)
+    
+    # Send to training queue
+    training_task = {
+        "job_id": job.job_id,
+        "model_type": model_type,
+        "data_path": data_path,
+        "hyperparams": json.loads(hyperparams) if hyperparams else None
+    }
+    
+    send_training_to_queue(training_task)
+    
+    context = {
+        "user": user,
+        "request": request,
+        "message": f"Training job {job.job_id} started successfully!"
+    }
+    return templates.TemplateResponse("training.html", context)
+
+
+def send_training_to_queue(task: dict):
+    """Send training task to RabbitMQ queue"""
+    connection_params = pika.ConnectionParameters(
+        host=RABBITMQ_HOST,
+        port=5672,
+        virtual_host='/',
+        credentials=pika.PlainCredentials(
+            username='rmuser',
+            password='rmpassword'
+        ),
+        heartbeat=30,
+        blocked_connection_timeout=2
+    )
+    connection = pika.BlockingConnection(connection_params)
+    channel = connection.channel()
+    channel.queue_declare(queue="training_tasks", durable=True)
+    
+    channel.basic_publish(
+        exchange='', 
+        routing_key="training_tasks", 
+        body=json.dumps(task), 
+        properties=pika.BasicProperties(delivery_mode=2)
+    )
+    
+    connection.close()
+
+
+@app.get("/training_status/{job_id}")
+def get_training_status(job_id: int, user_email: str = Depends(authenticate_cookie), session=Depends(get_session)):
+    user = UserService.get_user_by_email(user_email, session)
+    training_service = TrainingService.TrainingService()
+    
+    job = training_service.get_training_job(job_id, session)
+    
+    if not job or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Training job not found")
+    
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "metrics": json.loads(job.metrics) if job.metrics else None,
+        "model_path": job.model_path,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at
+    }
 
 
 if __name__ == "__main__":

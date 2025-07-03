@@ -64,6 +64,25 @@ services:
     deploy:
       replicas: 3
 
+  training-worker:
+    build:
+      context: ./app
+      dockerfile: Dockerfile.training_worker
+    env_file:
+      - ./app/.env
+    volumes:
+      - ./app:/app
+      - ./data:/data  # Mount data directory for training
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_started
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
 
   db:
     image: postgres:13

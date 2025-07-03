@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Model Training{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Model Training</h1>
+    
+    {% if message %}
+    <div class="alert alert-success" role="alert">
+        {{ message }}
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Start New Training Job</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/start_training/">
+                        <div class="mb-3">
+                            <label for="model_type" class="form-label">Model Type</label>
+                            <select class="form-select" id="model_type" name="model_type" required>
+                                <option value="">Select model type...</option>
+                                <option value="popular">Popular Items (Simple)</option>
+                                <option value="als">ALS Collaborative Filtering (Advanced)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="data_path" class="form-label">Data Path</label>
+                            <input type="text" class="form-control" id="data_path" name="data_path" 
+                                   placeholder="/path/to/data/directory" required>
+                            <div class="form-text">Path to directory containing clickstream.pq and events.pq files</div>
+                        </div>
+                        
+                        <div id="als_params" style="display: none;">
+                            <div class="mb-3">
+                                <label for="iterations" class="form-label">Iterations</label>
+                                <input type="number" class="form-control" id="iterations" name="iterations" 
+                                       value="10" min="1" max="100">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="factors" class="form-label">Factors</label>
+                                <input type="number" class="form-control" id="factors" name="factors" 
+                                       value="60" min="10" max="200">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Start Training</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Training History</h5>
+                </div>
+                <div class="card-body">
+                    {% if jobs %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Job ID</th>
+                                        <th>Model Type</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for job in jobs %}
+                                    <tr>
+                                        <td>{{ job.job_id }}</td>
+                                        <td>{{ job.model_type }}</td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if job.status == 'completed' %}bg-success
+                                                {% elif job.status == 'failed' %}bg-danger
+                                                {% elif job.status == 'training' %}bg-warning
+                                                {% else %}bg-secondary{% endif %}">
+                                                {{ job.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ job.created_at[:10] }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    onclick="checkStatus({{ job.job_id }})">
+                                                Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No training jobs yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Modal -->
+    <div class="modal fade" id="statusModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Training Job Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="statusContent">
+                    Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('model_type').addEventListener('change', function() {
+    const alsParams = document.getElementById('als_params');
+    if (this.value === 'als') {
+        alsParams.style.display = 'block';
+    } else {
+        alsParams.style.display = 'none';
+    }
+});
+
+function checkStatus(jobId) {
+    fetch(`/training_status/${jobId}`)
+        .then(response => response.json())
+        .then(data => {
+            let content = `
+                <div class="mb-3">
+                    <strong>Job ID:</strong> ${data.job_id}<br>
+                    <strong>Status:</strong> <span class="badge 
+                        ${data.status === 'completed' ? 'bg-success' : 
+                          data.status === 'failed' ? 'bg-danger' : 
+                          data.status === 'training' ? 'bg-warning' : 'bg-secondary'}">${data.status}</span><br>
+                    <strong>Created:</strong> ${data.created_at}<br>
+                    <strong>Updated:</strong> ${data.updated_at}
+                </div>
+            `;
+            
+            if (data.metrics) {
+                content += `
+                    <div class="mb-3">
+                        <h6>Metrics:</h6>
+                        <ul>
+                            <li>Recall@40: ${(data.metrics.recall_at_k * 100).toFixed(2)}%</li>
+                            <li>Precision@40: ${(data.metrics.precision_at_k * 100).toFixed(2)}%</li>
+                            <li>F1@40: ${(data.metrics.f1_at_k * 100).toFixed(2)}%</li>
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            if (data.model_path) {
+                content += `
+                    <div class="mb-3">
+                        <strong>Model Path:</strong> ${data.model_path}
+                    </div>
+                `;
+            }
+            
+            document.getElementById('statusContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('statusModal')).show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('statusContent').innerHTML = 'Error loading job details.';
+            new bootstrap.Modal(document.getElementById('statusModal')).show();
+        });
+}
+</script>
+{% endblock %} 

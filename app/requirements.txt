@@ -3,6 +3,7 @@ joblib
 sqlalchemy
 asyncpg
 psycopg
+psycopg2-binary
 psycopg-binary
 alembic
 pydantic
@@ -17,3 +18,8 @@ passlib
 python-jose
 jinja2
 python-multipart
+pandas
+polars
+implicit
+scipy
+numpy
